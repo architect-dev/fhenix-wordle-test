@@ -8,6 +8,8 @@
 
 [Tasks](tasks/fheedleTasks.ts)
 
+You can see an example of what playing Fheedle in the command line looks like here: [FheedleExample.png](./Fheedle%20Example.png)
+
 ### Notes:
 
 - Non optimized
