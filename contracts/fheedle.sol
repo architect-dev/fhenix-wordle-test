@@ -111,9 +111,9 @@ contract Fheedle is Permissioned {
 
   function _checkGuess(
     uint32 wordIndex,
-    InFheedleWord memory guess
+    FheedleWord memory guess
   ) internal view returns (FheedleWordResult memory wordResult, bool correct) {
-    FheedleWord = word = words[wordIndex];
+    FheedleWord memory word = words[wordIndex];
 
     // Matches are a single comparison, thus less expensive
 
@@ -125,12 +125,35 @@ contract Fheedle is Permissioned {
 
     // Characters that have matched should be excluded from yellow checking
     // This looks inefficient, but the gas cost of these checks is less than the savings
-    euint8[] toCheck;
-    if (!wordResult.green0) toCheck.push(word.l0);
-    if (!wordResult.green1) toCheck.push(word.l1);
-    if (!wordResult.green2) toCheck.push(word.l2);
-    if (!wordResult.green3) toCheck.push(word.l3);
-    if (!wordResult.green4) toCheck.push(word.l4);
+    uint8 toCheckCount;
+    if (!wordResult.green0) toCheckCount += 1;
+    if (!wordResult.green1) toCheckCount += 1;
+    if (!wordResult.green2) toCheckCount += 1;
+    if (!wordResult.green3) toCheckCount += 1;
+    if (!wordResult.green4) toCheckCount += 1;
+
+    uint8 i = 0;
+    euint8[] memory toCheck = new euint8[](toCheckCount);
+    if (!wordResult.green0) {
+      toCheck[i] = word.l0;
+      i += 1;
+    }
+    if (!wordResult.green1) {
+      toCheck[i] = word.l1;
+      i += 1;
+    }
+    if (!wordResult.green2) {
+      toCheck[i] = word.l2;
+      i += 1;
+    }
+    if (!wordResult.green3) {
+      toCheck[i] = word.l3;
+      i += 1;
+    }
+    if (!wordResult.green4) {
+      toCheck[i] = word.l4;
+      i += 1;
+    }
 
     correct = toCheck.length == 0;
 
@@ -184,10 +207,59 @@ contract Fheedle is Permissioned {
       }
     }
   }
+  // function _checkGuess(
+  //   uint32 wordIndex,
+  //   FheedleWord memory guess
+  // ) internal view returns (FheedleWordResult memory wordResult, bool correct) {
+  //   FheedleWord memory word = words[wordIndex];
+
+  //   // Matches are a single comparison, thus less expensive
+
+  //   wordResult.green0 = guess.l0.eq(word.l0);
+  //   wordResult.green1 = guess.l1.eq(word.l1);
+  //   wordResult.green2 = guess.l2.eq(word.l2);
+  //   wordResult.green3 = guess.l3.eq(word.l3);
+  //   wordResult.green4 = guess.l4.eq(word.l4);
+
+  //   wordResult.yellow0 = guess
+  //     .l0
+  //     .eq(word.l1)
+  //     .or(guess.l0.eq(word.l2))
+  //     .or(guess.l0.eq(word.l3))
+  //     .or(guess.l0.eq(word.l4));
+
+  //   wordResult.yellow1 = guess
+  //     .l1
+  //     .eq(word.l0)
+  //     .or(guess.l1.eq(word.l2))
+  //     .or(guess.l1.eq(word.l3))
+  //     .or(guess.l1.eq(word.l4));
+
+  //   wordResult.yellow2 = guess
+  //     .l2
+  //     .eq(word.l0)
+  //     .or(guess.l2.eq(word.l1))
+  //     .or(guess.l2.eq(word.l3))
+  //     .or(guess.l2.eq(word.l4));
+
+  //   wordResult.yellow3 = guess
+  //     .l3
+  //     .eq(word.l0)
+  //     .or(guess.l3.eq(word.l1))
+  //     .or(guess.l3.eq(word.l2))
+  //     .or(guess.l3.eq(word.l4));
+
+  //   wordResult.yellow4 = guess
+  //     .l4
+  //     .eq(word.l0)
+  //     .or(guess.l4.eq(word.l1))
+  //     .or(guess.l4.eq(word.l2))
+  //     .or(guess.l4.eq(word.l3));
+  // }
 
   function makeGuess(
     uint32 wordIndex,
-    InFheedleWord calldata guess
+    InFheedleWord calldata inGuess
   ) public returns (FheedleWordResult memory wordResult, bool correct) {
     FheedleGameResult storage userResult = userResults[msg.sender][wordIndex];
 
@@ -196,10 +268,12 @@ contract Fheedle is Permissioned {
     uint8 userGuessCount = uint8(userResult.guesses.length);
     if (userGuessCount == 6) revert OutOfGuesses();
 
+    FheedleWord memory guess = _processInWord(inGuess);
+
     (wordResult, correct) = _checkGuess(wordIndex, guess);
 
     userResult.guesses.push(
-      FheedleGuessWithResult({guess: _processInWord(guess), result: wordResult})
+      FheedleGuessWithResult({guess: guess, result: wordResult})
     );
 
     if (correct) {
@@ -232,6 +306,10 @@ contract Fheedle is Permissioned {
     FheedleGameResult storage userResult = userResults[msg.sender][wordIndex];
 
     sealedResult.gotItIn = userResult.gotItIn;
+
+    sealedResult.guesses = new SealedFheedleGuessWithResult[](
+      userResult.guesses.length
+    );
 
     for (uint8 i = 0; i < uint8(userResult.guesses.length); i++) {
       sealedResult.guesses[i] = SealedFheedleGuessWithResult({

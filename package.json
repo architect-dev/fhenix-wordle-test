@@ -10,6 +10,9 @@
     "task:addCount": "hardhat task:addCount",
     "task:getCount": "hardhat task:getCount",
     "task:getFunds": "hardhat task:getFunds",
+    "task:fheedle:addWord": "hardhat task:fheedle:addWord",
+    "task:fheedle:getWord": "hardhat task:fheedle:getWord",
+    "task:fheedle:play": "hardhat task:fheedle:play",
     "localfhenix:start": "hardhat localfhenix:start",
     "localfhenix:stop": "hardhat localfhenix:stop",
     "faucet": "hardhat task:fhenix:usefaucet"
@@ -56,6 +59,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "fhenixjs": "0.4.0-alpha.0"
+    "fhenixjs": "0.4.0-alpha.0",
+    "readline": "^1.3.0"
   }
 }
