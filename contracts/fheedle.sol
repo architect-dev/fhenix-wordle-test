@@ -5,20 +5,13 @@ pragma solidity >=0.8.13 <0.9.0;
 import "@fhenixprotocol/contracts/FHE.sol";
 import {Permissioned, Permission} from "@fhenixprotocol/contracts/access/Permissioned.sol";
 
-// Problems to solve:
-// . How to store letters in word
-// . Word checking
-// . . Check if letter in correct position
-// . . Check if letter anywhere in word
-// . Each FHE.eq check costs 40000 gas, to check every input letter against every word letter is 25 checks
-// . .
-
-// Check if letter matches in correct position first (green)
-// If not, check if letter exists in any position (yellow)
-
-// Questions that have come up:
-// . Can euints be inserted into a struct, how much data do they consume in the struct
-// . Is it possible to return complex data structures, or only individual items
+// ERRATA:
+// . Non optimized
+// . Leaks word to users through getSealedWord
+// . First guess (most number of letter comparisons) takes upwards of 10 seconds on localfhenix
+// . Each guess's result is not encrypted, without knowing the letters, the results for each letter carry nearly no information
+// . Clearly the structs below can be replaced by arrays of inEuints / uints / etc
+// . . They were left this way because it is easier to test various gas and computation saving methods
 
 struct InFheedleWord {
   inEuint8 l0;
@@ -125,6 +118,7 @@ contract Fheedle is Permissioned {
 
     // Characters that have matched should be excluded from yellow checking
     // This looks inefficient, but the gas cost of these checks is less than the savings
+
     uint8 toCheckCount;
     if (!wordResult.green0) toCheckCount += 1;
     if (!wordResult.green1) toCheckCount += 1;
@@ -207,6 +201,12 @@ contract Fheedle is Permissioned {
       }
     }
   }
+
+  // NAIVE approach to checking the letters of a guess
+  // Performs duplicate checks (costly with FHE)
+  // This is required if the result is required to be encrypted
+  // Which I have decided for this implementation that it does not
+
   // function _checkGuess(
   //   uint32 wordIndex,
   //   FheedleWord memory guess
@@ -294,6 +294,7 @@ contract Fheedle is Permissioned {
     });
   }
 
+  // Returns a sealed version of the user's result for a word
   function getSealedUserResult(
     Permission memory permission,
     uint32 wordIndex
@@ -319,6 +320,8 @@ contract Fheedle is Permissioned {
     }
   }
 
+  // This function is here for debugging purposes
+  // TODO: Remove before deploy / limit to admin
   function getSealedWord(
     Permission memory permission,
     uint32 wordIndex
