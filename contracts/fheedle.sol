@@ -10,6 +10,7 @@ import {Permissioned, Permission} from "@fhenixprotocol/contracts/access/Permiss
 // . Leaks word to users through getSealedWord
 // . First guess (most number of letter comparisons) takes upwards of 10 seconds on localfhenix
 // . Each guess's result is not encrypted, without knowing the letters, the results for each letter carry nearly no information
+// . Does not handle "Word of the Day" functionality
 // . Clearly the structs below can be replaced by arrays of inEuints / uints / etc
 // . . They were left this way because it is easier to test various gas and computation saving methods
 

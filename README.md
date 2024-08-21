@@ -1,3 +1,50 @@
+# Implementation of Wordle on FHEnix
+
+### Important files:
+
+[Fheedle.sol](contracts/fheedle.sol)
+
+[Hardhat Tests](test/fheedle/Fheedle.behavior.ts)
+
+[Tasks](tasks/fheedleTasks.ts)
+
+### Notes:
+
+- Non optimized
+- Leaks word to users through getSealedWord (should be removed for any prod version)
+- First guess (most number of letter comparisons) takes upwards of 10 seconds on localfhenix
+- Each guess's result is not encrypted, without knowing the letters, the results for each letter carry nearly no information
+- Does not handle "Word of the Day" functionality
+- Clearly the structs in Fheedle.sol could be replaced by arrays of inEuints / uints / etc. They were left as they are because it is easier to test various gas and computation saving methods.
+
+### Commands:
+
+```sh
+pnpm task:fheedle:addWord --word HELLO
+```
+
+Adds a word to the Fheedle contract, the following commands will reference this new word
+Replace "HELLO" with your 5 letter word (no validation)
+
+```sh
+pnpm task:fheedle:getWord
+```
+
+Gets the most recently added word (shhhh)
+
+```sh
+pnpm task:fheedle:play
+```
+
+Play a game of encrypted wordle using the most recently added word (which you definitely don't know).
+You have 6 guesses. It will validate that each guess is formatted correctly (exactly 5 letters).
+It does not validate that your input is actually a word (ABCDE is considered valid).
+Please be patient while your word is checked
+
+<hr/>
+
+Forked From:
+
 # Fhenix Hardhat Example [![Open in Gitpod][gitpod-badge]][gitpod]
 
 [gitpod]: https://gitpod.io/#https://github.com/fhenixprotocol/fhenix-hardhat-example
