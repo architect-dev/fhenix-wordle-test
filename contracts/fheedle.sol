@@ -18,6 +18,15 @@ import {Permissioned, Permission} from "@fhenixprotocol/contracts/access/Permiss
 
 // Questions that have come up:
 // . Can euints be inserted into a struct, how much data do they consume in the struct
+// . Is it possible to return complex data structures, or only individual items
+
+struct InFheedleWord {
+  inEuint8 l0;
+  inEuint8 l1;
+  inEuint8 l2;
+  inEuint8 l3;
+  inEuint8 l4;
+}
 
 struct FheedleWord {
   euint8 l0;
@@ -27,19 +36,39 @@ struct FheedleWord {
   euint8 l4;
 }
 struct FheedleWordResult {
-  uint8 r0;
-  uint8 r1;
-  uint8 r2;
-  uint8 r3;
-  uint8 r4;
+  bool green0;
+  bool yellow0;
+  bool green1;
+  bool yellow1;
+  bool green2;
+  bool yellow2;
+  bool green3;
+  bool yellow3;
+  bool green4;
+  bool yellow4;
 }
 struct FheedleGuessWithResult {
   FheedleWord guess;
   FheedleWordResult result;
 }
-
 struct FheedleGameResult {
   FheedleGuessWithResult[] guesses;
+  uint8 gotItIn;
+}
+
+struct SealedFheedleWord {
+  string l0;
+  string l1;
+  string l2;
+  string l3;
+  string l4;
+}
+struct SealedFheedleGuessWithResult {
+  SealedFheedleWord guess;
+  FheedleWordResult result;
+}
+struct SealedFheedleGameResult {
+  SealedFheedleGuessWithResult[] guesses;
   uint8 gotItIn;
 }
 
@@ -60,52 +89,167 @@ contract Fheedle is Permissioned {
   error OutOfGuesses();
   error AlreadyGuessedCorrectly();
 
+  function _processInWord(
+    InFheedleWord memory inWord
+  ) internal view returns (FheedleWord memory processedWord) {
+    processedWord = FheedleWord({
+      l0: FHE.asEuint8(inWord.l0),
+      l1: FHE.asEuint8(inWord.l1),
+      l2: FHE.asEuint8(inWord.l2),
+      l3: FHE.asEuint8(inWord.l3),
+      l4: FHE.asEuint8(inWord.l4)
+    });
+  }
+
   function addWord(
-    FheedleWord calldata word
+    InFheedleWord calldata inWord
   ) public returns (uint32 wordIndex) {
-    uint32 wordIndex = numberOfWords;
-
-    words[wordIndex] = word;
-
+    wordIndex = numberOfWords;
+    words[wordIndex] = _processInWord(inWord);
     numberOfWords += 1;
+  }
+
+  function _checkGuess(
+    uint32 wordIndex,
+    InFheedleWord memory guess
+  ) internal view returns (FheedleWordResult memory wordResult, bool correct) {
+    FheedleWord = word = words[wordIndex];
+
+    // Matches are a single comparison, thus less expensive
+
+    wordResult.green0 = FHE.decrypt(guess.l0.eq(word.l0));
+    wordResult.green1 = FHE.decrypt(guess.l1.eq(word.l1));
+    wordResult.green2 = FHE.decrypt(guess.l2.eq(word.l2));
+    wordResult.green3 = FHE.decrypt(guess.l3.eq(word.l3));
+    wordResult.green4 = FHE.decrypt(guess.l4.eq(word.l4));
+
+    // Characters that have matched should be excluded from yellow checking
+    // This looks inefficient, but the gas cost of these checks is less than the savings
+    euint8[] toCheck;
+    if (!wordResult.green0) toCheck.push(word.l0);
+    if (!wordResult.green1) toCheck.push(word.l1);
+    if (!wordResult.green2) toCheck.push(word.l2);
+    if (!wordResult.green3) toCheck.push(word.l3);
+    if (!wordResult.green4) toCheck.push(word.l4);
+
+    correct = toCheck.length == 0;
+
+    if (toCheck.length >= 2) {
+      uint256 i;
+      ebool tempYellow;
+
+      if (!wordResult.green0) {
+        tempYellow = FHE.asEbool(false);
+        for (i = 0; i < toCheck.length; i++) {
+          if (i == 0) continue;
+          tempYellow = tempYellow.or(guess.l0.eq(toCheck[i]));
+        }
+        wordResult.yellow0 = FHE.decrypt(tempYellow);
+      }
+
+      if (!wordResult.green1) {
+        tempYellow = FHE.asEbool(false);
+        for (i = 0; i < toCheck.length; i++) {
+          if (i == 1) continue;
+          tempYellow = tempYellow.or(guess.l1.eq(toCheck[i]));
+        }
+        wordResult.yellow1 = FHE.decrypt(tempYellow);
+      }
+
+      if (!wordResult.green2) {
+        tempYellow = FHE.asEbool(false);
+        for (i = 0; i < toCheck.length; i++) {
+          if (i == 2) continue;
+          tempYellow = tempYellow.or(guess.l2.eq(toCheck[i]));
+        }
+        wordResult.yellow2 = FHE.decrypt(tempYellow);
+      }
+
+      if (!wordResult.green3) {
+        tempYellow = FHE.asEbool(false);
+        for (i = 0; i < toCheck.length; i++) {
+          if (i == 3) continue;
+          tempYellow = tempYellow.or(guess.l3.eq(toCheck[i]));
+        }
+        wordResult.yellow3 = FHE.decrypt(tempYellow);
+      }
+
+      if (!wordResult.green4) {
+        tempYellow = FHE.asEbool(false);
+        for (i = 0; i < toCheck.length; i++) {
+          if (i == 4) continue;
+          tempYellow = tempYellow.or(guess.l4.eq(toCheck[i]));
+        }
+        wordResult.yellow4 = FHE.decrypt(tempYellow);
+      }
+    }
   }
 
   function makeGuess(
     uint32 wordIndex,
-    FheedleWord guess
+    InFheedleWord calldata guess
   ) public returns (FheedleWordResult memory wordResult, bool correct) {
     FheedleGameResult storage userResult = userResults[msg.sender][wordIndex];
 
     if (userResult.gotItIn != 0) revert AlreadyGuessedCorrectly();
 
-    uint8 userGuessCount = userResult.guesses.length;
+    uint8 userGuessCount = uint8(userResult.guesses.length);
     if (userGuessCount == 6) revert OutOfGuesses();
 
-    (wordResult, correct) = checkGuess(wordIndex, guess);
+    (wordResult, correct) = _checkGuess(wordIndex, guess);
+
+    userResult.guesses.push(
+      FheedleGuessWithResult({guess: _processInWord(guess), result: wordResult})
+    );
 
     if (correct) {
-      userResult.gotItIn = userResult.guesses.length;
+      userResult.gotItIn = uint8(userResult.guesses.length);
     }
   }
 
-  function add(inEuint32 calldata encryptedValue) public {
-    euint32 value = FHE.asEuint32(encryptedValue);
-    counter = counter + value;
+  function _sealWord(
+    FheedleWord memory word,
+    bytes32 publicKey
+  ) internal view returns (SealedFheedleWord memory sealedWord) {
+    sealedWord = SealedFheedleWord({
+      l0: FHE.sealoutput(word.l0, publicKey),
+      l1: FHE.sealoutput(word.l1, publicKey),
+      l2: FHE.sealoutput(word.l2, publicKey),
+      l3: FHE.sealoutput(word.l3, publicKey),
+      l4: FHE.sealoutput(word.l4, publicKey)
+    });
   }
 
-  function getCounter() public view returns (uint256) {
-    return FHE.decrypt(counter);
+  function getSealedUserResult(
+    Permission memory permission,
+    uint32 wordIndex
+  )
+    public
+    view
+    onlySender(permission)
+    returns (SealedFheedleGameResult memory sealedResult)
+  {
+    FheedleGameResult storage userResult = userResults[msg.sender][wordIndex];
+
+    sealedResult.gotItIn = userResult.gotItIn;
+
+    for (uint8 i = 0; i < uint8(userResult.guesses.length); i++) {
+      sealedResult.guesses[i] = SealedFheedleGuessWithResult({
+        guess: _sealWord(userResult.guesses[i].guess, permission.publicKey),
+        result: userResult.guesses[i].result
+      });
+    }
   }
 
-  function getCounterPermit(
-    Permission memory permission
-  ) public view onlySender(permission) returns (uint256) {
-    return FHE.decrypt(counter);
-  }
-
-  function getCounterPermitSealed(
-    Permission memory permission
-  ) public view onlySender(permission) returns (string memory) {
-    return FHE.sealoutput(counter, permission.publicKey);
+  function getSealedWord(
+    Permission memory permission,
+    uint32 wordIndex
+  )
+    public
+    view
+    onlySender(permission)
+    returns (SealedFheedleWord memory sealedWord)
+  {
+    sealedWord = _sealWord(words[wordIndex], permission.publicKey);
   }
 }
