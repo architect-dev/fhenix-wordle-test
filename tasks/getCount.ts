@@ -30,5 +30,6 @@ task("task:getCount").setAction(async function (
   const sealedResult = await contract.getCounterPermitSealed(permit);
   let unsealed = fhenixjs.unseal(Counter.address, sealedResult);
 
+  console.log(`sealed result: ${sealedResult}`);
   console.log(`got unsealed result: ${unsealed.toString()}`);
 });
